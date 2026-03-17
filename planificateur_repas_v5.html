@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planificateur repas famille</title>
+<style>
+:root{
+  --font-sans:system-ui,-apple-system,sans-serif;
+  --color-background-primary:#ffffff;--color-background-secondary:#f5f5f2;
+  --color-text-primary:#1a1a18;--color-text-secondary:#6b6b66;--color-text-tertiary:#9c9a92;
+  --color-border-tertiary:rgba(0,0,0,0.12);--color-border-secondary:rgba(0,0,0,0.2);--color-border-primary:rgba(0,0,0,0.35);
+  --color-border-info:#378ADD;--color-background-info:#E6F1FB;--color-text-info:#185FA5;
+  --color-text-danger:#A32D2D;--color-text-success:#3B6D11;
+  --border-radius-md:8px;--border-radius-lg:12px;
+}
+@media(prefers-color-scheme:dark){:root{
+  --color-background-primary:#1e1e1c;--color-background-secondary:#2a2a28;
+  --color-text-primary:#e8e6de;--color-text-secondary:#9c9a92;--color-text-tertiary:#6b6b66;
+  --color-border-tertiary:rgba(255,255,255,0.1);--color-border-secondary:rgba(255,255,255,0.18);--color-border-primary:rgba(255,255,255,0.3);
+  --color-background-info:#0c2d4a;--color-text-info:#85B7EB;--color-text-danger:#F09595;--color-text-success:#C0DD97;
+}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);background:var(--color-background-primary);color:var(--color-text-primary);padding:1.25rem;max-width:900px;margin:0 auto}
+.app{padding:1rem 0}
+.tabs{display:flex;gap:6px;margin-bottom:1.25rem;border-bottom:0.5px solid var(--color-border-tertiary);padding-bottom:0}
+.tab{background:none;border:none;border-bottom:2px solid transparent;padding:8px 14px;cursor:pointer;font-size:14px;color:var(--color-text-secondary);margin-bottom:-1px;font-family:var(--font-sans)}
+.tab.active{color:var(--color-text-primary);border-bottom-color:var(--color-text-primary);font-weight:500}
+.tab:hover:not(.active){color:var(--color-text-primary)}
+.view{display:none}.view.active{display:block}
+/* PLANNING */
+.week-nav{display:flex;align-items:center;gap:8px}
+.week-label{font-size:14px;font-weight:500;color:var(--color-text-primary);min-width:110px;text-align:center}
+.nav-btn{background:none;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:4px 10px;cursor:pointer;font-size:13px;color:var(--color-text-secondary);font-family:var(--font-sans)}
+.nav-btn:hover{background:var(--color-background-secondary)}
+.legend{display:flex;gap:10px;flex-wrap:wrap}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-secondary)}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.grid{display:grid;grid-template-columns:52px repeat(7,1fr);gap:5px}
+.day-header{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:7px 4px;text-align:center;border:0.5px solid var(--color-border-tertiary)}
+.day-header.today{border-color:var(--color-border-info);background:var(--color-background-info)}
+.day-header.today .day-name{color:var(--color-text-info)}
+.day-name{font-size:11px;font-weight:500;color:var(--color-text-primary)}
+.day-date{font-size:10px;color:var(--color-text-tertiary);margin-top:1px}
+.slot-label{display:flex;align-items:center;justify-content:flex-end;padding-right:5px}
+.slot-label span{font-size:10px;color:var(--color-text-tertiary);text-align:right}
+.meal-cell{min-height:64px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-tertiary);padding:5px;cursor:pointer;display:flex;flex-direction:column;gap:2px;background:var(--color-background-primary)}
+.meal-cell:hover{border-color:var(--color-border-primary)}
+.meal-cell.empty{background:var(--color-background-secondary);border-style:dashed}
+.meal-cell.disabled{background:none;border:none;cursor:default;pointer-events:none;min-height:64px}
+.meal-tag{font-size:10px;padding:1px 5px;border-radius:20px;display:inline-block;width:fit-content;font-weight:500}
+.tag-vege{background:#EAF3DE;color:#3B6D11}.tag-poulet{background:#FAEEDA;color:#633806}
+.tag-porc{background:#FAEEDA;color:#633806}.tag-boeuf{background:#FCEBEB;color:#791F1F}
+.tag-poisson{background:#E6F1FB;color:#0C447C}
+.meal-name{font-size:11px;font-weight:500;color:var(--color-text-primary);line-height:1.3}
+.meal-time{font-size:10px;color:var(--color-text-tertiary)}
+.add-icon{font-size:16px;color:var(--color-text-tertiary);margin:auto}
+/* RECETTES */
+.search-input{border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:6px 10px;font-size:13px;width:180px;background:var(--color-background-primary);color:var(--color-text-primary);font-family:var(--font-sans)}
+.filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem}
+.filter-btn{background:none;border:0.5px solid var(--color-border-secondary);border-radius:20px;padding:4px 10px;cursor:pointer;font-size:12px;color:var(--color-text-secondary);font-family:var(--font-sans)}
+.filter-btn.active{background:var(--color-text-primary);color:var(--color-background-primary);border-color:var(--color-text-primary)}
+.recipe-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.recipe-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:12px;transition:border-color 0.15s;cursor:pointer}
+.recipe-card:hover{border-color:var(--color-border-secondary)}
+.rc-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px}
+.rc-name{font-size:13px;font-weight:500;color:var(--color-text-primary);line-height:1.3}
+.rc-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:4px}
+.rc-time{font-size:11px;color:var(--color-text-tertiary)}
+.rc-tm{font-size:10px;padding:1px 5px;border-radius:10px;background:var(--color-background-secondary);color:var(--color-text-secondary)}
+.rc-ings{font-size:11px;color:var(--color-text-secondary);line-height:1.5;margin-bottom:8px}
+.rc-actions{display:flex;gap:6px;flex-wrap:wrap}
+.rc-btn{background:none;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:4px 8px;cursor:pointer;font-size:11px;color:var(--color-text-secondary);font-family:var(--font-sans)}
+.rc-btn:hover{background:var(--color-background-secondary)}
+.rc-btn-plan{background:none;border:0.5px solid var(--color-border-info);border-radius:var(--border-radius-md);padding:4px 8px;cursor:pointer;font-size:11px;color:var(--color-text-info);font-family:var(--font-sans)}
+.rc-btn-plan:hover{background:var(--color-background-info)}
+.rc-btn-danger{background:none;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:4px 8px;cursor:pointer;font-size:11px;color:var(--color-text-danger);font-family:var(--font-sans)}
+.rc-btn-danger:hover{background:#FCEBEB}
+/* FORM AJOUT/EDIT */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:0.75rem}
+.form-row.single{grid-template-columns:1fr}
+.form-label{font-size:11px;color:var(--color-text-secondary);margin-bottom:3px}
+.form-input,.form-select{border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:6px 10px;font-size:13px;width:100%;background:var(--color-background-primary);color:var(--color-text-primary);font-family:var(--font-sans)}
+.form-input:focus,.form-select:focus{outline:none;border-color:var(--color-border-primary)}
+.form-textarea{border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:6px 10px;font-size:13px;width:100%;background:var(--color-background-primary);color:var(--color-text-primary);font-family:var(--font-sans);min-height:80px;resize:vertical;line-height:1.5}
+.form-textarea:focus{outline:none;border-color:var(--color-border-primary)}
+.btn-primary{background:var(--color-text-primary);color:var(--color-background-primary);border:none;border-radius:var(--border-radius-md);padding:7px 16px;cursor:pointer;font-size:13px;font-family:var(--font-sans)}
+.btn-primary:hover{opacity:0.85}
+.btn-cancel{background:none;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:7px 16px;cursor:pointer;font-size:13px;color:var(--color-text-secondary);font-family:var(--font-sans)}
+.btn-cancel:hover{background:var(--color-background-secondary)}
+.custom-badge{font-size:9px;padding:1px 4px;border-radius:4px;background:var(--color-background-info);color:var(--color-text-info);vertical-align:middle;margin-left:4px}
+/* Ingredient rows in form */
+.ing-row{display:grid;grid-template-columns:1fr 120px 28px;gap:6px;margin-bottom:5px;align-items:center}
+.ing-row input{border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:5px 8px;font-size:12px;background:var(--color-background-primary);color:var(--color-text-primary);font-family:var(--font-sans);width:100%}
+.ing-row input:focus{outline:none;border-color:var(--color-border-primary)}
+.ing-del{background:none;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);width:28px;height:28px;cursor:pointer;font-size:14px;color:var(--color-text-tertiary);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ing-del:hover{background:var(--color-background-secondary);color:var(--color-text-danger)}
+.add-ing-btn{background:none;border:0.5px dashed var(--color-border-secondary);border-radius:var(--border-radius-md);padding:5px 10px;cursor:pointer;font-size:12px;color:var(--color-text-tertiary);font-family:var(--font-sans);width:100%;text-align:left;margin-top:2px}
+.add-ing-btn:hover{background:var(--color-background-secondary);color:var(--color-text-secondary)}
+/* COURSES */
+.courses-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px}
+.btn-sm{background:none;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:5px 12px;cursor:pointer;font-size:12px;color:var(--color-text-secondary);font-family:var(--font-sans)}
+.btn-sm:hover{background:var(--color-background-secondary)}
+.btn-sm.active{background:var(--color-text-primary);color:var(--color-background-primary);border-color:var(--color-text-primary)}
+.btn-sm.danger{color:var(--color-text-danger)}.btn-sm.danger:hover{background:#FCEBEB}
+.empty-state{text-align:center;padding:2rem;color:var(--color-text-tertiary);font-size:13px}
+.cat-section{margin-bottom:1rem}
+.cat-title{font-size:12px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;padding-bottom:4px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.course-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
+.course-item:last-child{border-bottom:none}
+.course-check{width:16px;height:16px;border:0.5px solid var(--color-border-secondary);border-radius:4px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:transparent;user-select:none}
+.course-check.checked{background:var(--color-text-primary);border-color:var(--color-text-primary);color:var(--color-background-primary)}
+.course-name{font-size:13px;color:var(--color-text-primary);flex:1}
+.course-name.checked{text-decoration:line-through;color:var(--color-text-tertiary)}
+.course-qty{font-size:12px;color:var(--color-text-secondary);text-align:right;min-width:80px}
+.course-qty.checked{color:var(--color-text-tertiary)}
+/* SAUVEGARDE */
+.save-bar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:8px 12px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);margin-bottom:1rem;border:0.5px solid var(--color-border-tertiary)}
+.save-status{font-size:11px;color:var(--color-text-tertiary);flex:1}
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:100;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--color-background-primary);border-radius:var(--border-radius-lg);border:0.5px solid var(--color-border-tertiary);padding:1.25rem;width:340px;max-width:92vw;max-height:84vh;overflow-y:auto}
+.modal-wide{width:500px}
+.modal h3{font-size:15px;font-weight:500;margin-bottom:0.75rem;color:var(--color-text-primary)}
+.modal-subtitle{font-size:12px;color:var(--color-text-tertiary);margin-bottom:0.75rem}
+.sug-btn{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:7px 10px;text-align:left;cursor:pointer;font-size:12px;color:var(--color-text-primary);display:flex;align-items:center;gap:6px;width:100%;margin-bottom:5px;font-family:var(--font-sans)}
+.sug-btn:hover{border-color:var(--color-border-primary);background:var(--color-background-primary)}
+.modal-search{border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:6px 10px;font-size:13px;width:100%;background:var(--color-background-primary);color:var(--color-text-primary);font-family:var(--font-sans);margin-bottom:0.75rem}
+.modal-search:focus{outline:none;border-color:var(--color-border-primary)}
+.modal-section{font-size:11px;font-weight:500;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:0.05em;margin:10px 0 6px}
+.modal-close{background:none;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:6px 14px;cursor:pointer;font-size:13px;color:var(--color-text-secondary);width:100%;margin-top:10px;font-family:var(--font-sans)}
+.modal-close:hover{background:var(--color-background-secondary)}
+.plan-courses-row{display:flex;align-items:center;gap:8px;padding:8px 0 4px;border-top:0.5px solid var(--color-border-tertiary);margin-top:8px}
+.plan-courses-cb{width:15px;height:15px;accent-color:var(--color-text-primary);cursor:pointer;flex-shrink:0}
+.plan-courses-label{font-size:12px;color:var(--color-text-secondary);cursor:pointer}
+/* DETAIL */
+.detail-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:1rem;padding-bottom:0.75rem;border-bottom:0.5px solid var(--color-border-tertiary)}
+.detail-section-title{font-size:11px;font-weight:500;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:0.05em;margin:0.75rem 0 0.4rem}
+.detail-ing-cat{font-size:11px;font-weight:500;color:var(--color-text-secondary);margin:0.5rem 0 0.25rem}
+.detail-ing-list{list-style:none;padding:0}
+.detail-ing-list li{font-size:13px;color:var(--color-text-primary);padding:4px 0;border-bottom:0.5px solid var(--color-border-tertiary);display:flex;justify-content:space-between}
+.detail-ing-list li:last-child{border-bottom:none}
+.ing-qty{color:var(--color-text-secondary);font-size:12px}
+.detail-steps{list-style:none;padding:0;counter-reset:steps}
+.detail-steps li{counter-increment:steps;font-size:13px;color:var(--color-text-primary);padding:7px 0 7px 30px;border-bottom:0.5px solid var(--color-border-tertiary);position:relative;line-height:1.5}
+.detail-steps li:last-child{border-bottom:none}
+.detail-steps li::before{content:counter(steps);position:absolute;left:0;top:8px;width:20px;height:20px;background:var(--color-background-secondary);border-radius:50%;font-size:10px;font-weight:500;color:var(--color-text-secondary);text-align:center;line-height:20px}
+.detail-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:0.75rem;padding-top:0.75rem;border-top:0.5px solid var(--color-border-tertiary)}
+.cookidoo-link{display:inline-flex;align-items:center;gap:4px;background:none;border:0.5px solid var(--color-border-info);border-radius:var(--border-radius-md);padding:4px 10px;font-size:11px;color:var(--color-text-info);text-decoration:none;font-family:var(--font-sans)}
+.cookidoo-link:hover{background:var(--color-background-info)}
+/* CONFIRM DIALOG */
+.confirm-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:200;align-items:center;justify-content:center}
+.confirm-overlay.open{display:flex}
+.confirm-box{background:var(--color-background-primary);border-radius:var(--border-radius-lg);border:0.5px solid var(--color-border-tertiary);padding:1.25rem;width:300px;max-width:92vw}
+.confirm-box p{font-size:14px;color:var(--color-text-primary);margin-bottom:1rem;line-height:1.5}
+.confirm-actions{display:flex;gap:8px;justify-content:flex-end}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- BARRE DE SAUVEGARDE -->
+<div class="save-bar">
+  <span class="save-status" id="save-status">Sauvegarde automatique activée</span>
+  <button class="btn-sm" onclick="exportData()" title="Télécharger planning + recettes perso">⬇ Exporter</button>
+  <label class="btn-sm" style="cursor:pointer" title="Charger un fichier exporté précédemment">⬆ Importer<input type="file" accept=".json" onchange="importData(event)" style="display:none"></label>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('planning')">Planning</button>
+  <button class="tab" onclick="switchTab('recettes')">Recettes</button>
+  <button class="tab" onclick="switchTab('courses')">Liste de courses <span id="courses-badge"></span></button>
+</div>
+
+<!-- PLANNING -->
+<div class="view active" id="view-planning">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:0.75rem">
+    <div class="week-nav">
+      <button class="nav-btn" onclick="changeWeek(-1)">←</button>
+      <span class="week-label" id="week-label">Semaine</span>
+      <button class="nav-btn" onclick="changeWeek(1)">→</button>
+    </div>
+    <div class="legend">
+      <div class="leg"><div class="dot" style="background:#639922"></div>Végé</div>
+      <div class="leg"><div class="dot" style="background:#BA7517"></div>Volaille/porc</div>
+      <div class="leg"><div class="dot" style="background:#E24B4A"></div>Bœuf</div>
+      <div class="leg"><div class="dot" style="background:#378ADD"></div>Poisson</div>
+    </div>
+  </div>
+  <div class="grid" id="meal-grid"></div>
+</div>
+
+<!-- RECETTES -->
+<div class="view" id="view-recettes">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:8px">
+    <input class="search-input" type="text" placeholder="Rechercher…" oninput="filterRecipes(this.value)">
+    <button class="rc-btn" id="add-toggle-btn" onclick="openRecipeForm(null)">+ Ajouter une recette</button>
+  </div>
+  <div class="filter-row">
+    <button class="filter-btn active" onclick="setFilter('tous',this)">Tous</button>
+    <button class="filter-btn" onclick="setFilter('vege',this)">Végé</button>
+    <button class="filter-btn" onclick="setFilter('poulet',this)">Volaille</button>
+    <button class="filter-btn" onclick="setFilter('porc',this)">Porc</button>
+    <button class="filter-btn" onclick="setFilter('poisson',this)">Poisson</button>
+    <button class="filter-btn" onclick="setFilter('thermomix',this)">TM6</button>
+    <button class="filter-btn" onclick="setFilter('rapide',this)">Rapide (&lt;25min)</button>
+  </div>
+  <div class="recipe-grid" id="recipe-grid"></div>
+</div>
+
+<!-- COURSES -->
+<div class="view" id="view-courses">
+  <div class="courses-header">
+    <div style="font-size:13px;color:var(--color-text-secondary)" id="courses-subtitle"></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn-sm active" id="btn-group-cat" onclick="setGroupMode('cat')">Par catégorie</button>
+      <button class="btn-sm" id="btn-group-rec" onclick="setGroupMode('recette')">Par recette</button>
+      <button class="btn-sm" onclick="clearChecked()">Effacer cochés</button>
+      <button class="btn-sm danger" onclick="resetCourses()">Réinitialiser</button>
+    </div>
+  </div>
+  <div id="courses-list"></div>
+</div>
+</div>
+
+<!-- MODAL DÉTAIL RECETTE -->
+<div class="modal-overlay" id="modal-detail">
+  <div class="modal modal-wide"><h3 id="mdet-title"></h3><div id="mdet-body"></div>
+    <button class="modal-close" onclick="closeDetailModal()">Fermer</button></div>
+</div>
+
+<!-- MODAL FORMULAIRE RECETTE (ajout + édition) -->
+<div class="modal-overlay" id="modal-form">
+  <div class="modal modal-wide">
+    <h3 id="mform-title">Nouvelle recette</h3>
+    <div class="form-row">
+      <div><div class="form-label">Nom *</div><input class="form-input" id="f-name" type="text" placeholder="Ex : Poulet basquaise"></div>
+      <div><div class="form-label">Type *</div>
+        <select class="form-select" id="f-tag">
+          <option value="vege">Végé</option><option value="poulet">Volaille</option>
+          <option value="porc">Porc</option><option value="boeuf">Bœuf</option><option value="poisson">Poisson</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div><div class="form-label">Temps (min) *</div><input class="form-input" id="f-time" type="number" min="5" placeholder="30"></div>
+      <div><div class="form-label">Thermomix TM6</div>
+        <select class="form-select" id="f-tm"><option value="0">Non</option><option value="1">Oui</option></select>
+      </div>
+    </div>
+    <div class="form-row single" style="margin-top:6px">
+      <div><div class="form-label">Lien Cookidoo (optionnel)</div><input class="form-input" id="f-cookidoo" type="url" placeholder="https://cookidoo.fr/recipes/..."></div>
+    </div>
+    <div style="margin-top:0.75rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div class="form-label" style="margin:0">Ingrédients *</div>
+        <div style="display:grid;grid-template-columns:1fr 90px 28px;gap:6px;width:calc(100% - 0px);font-size:10px;color:var(--color-text-tertiary);padding-right:34px">
+          <span>Nom de l'ingrédient</span><span>Quantité</span><span></span>
+        </div>
+      </div>
+      <div id="f-ing-rows"></div>
+      <button class="add-ing-btn" onclick="addIngRow()">+ Ajouter un ingrédient</button>
+    </div>
+    <div style="margin-top:0.75rem">
+      <div class="form-label">Étapes de préparation (optionnel — une par ligne)</div>
+      <textarea class="form-textarea" id="f-steps" placeholder="Éplucher et couper les légumes.&#10;Faire revenir 5 min.&#10;Mijoter 20 min."></textarea>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:0.75rem">
+      <button class="btn-primary" onclick="saveRecipeForm()">Enregistrer</button>
+      <button class="btn-cancel" onclick="closeRecipeForm()">Annuler</button>
+    </div>
+    <div id="f-error" style="font-size:12px;color:var(--color-text-danger);margin-top:6px;display:none"></div>
+  </div>
+</div>
+
+<!-- MODAL PLANIFIER -->
+<div class="modal-overlay" id="modal-plan">
+  <div class="modal"><h3 id="mplan-title">Planifier</h3>
+    <div class="modal-subtitle">Choisissez un créneau</div>
+    <div id="mplan-body"></div>
+    <button class="modal-close" onclick="closePlanModal()">Fermer</button></div>
+</div>
+
+<!-- MODAL CHOISIR RECETTE (depuis planning) -->
+<div class="modal-overlay" id="modal-recipe">
+  <div class="modal"><h3 id="mrec-title"></h3>
+    <input class="modal-search" id="mrec-search" type="text" placeholder="Rechercher une recette…" oninput="filterModalRecipes(this.value)">
+    <div id="mrec-body"></div>
+    <button class="modal-close" onclick="closeRecipeModal()">Fermer</button></div>
+</div>
+
+<!-- CONFIRM DELETE -->
+<div class="confirm-overlay" id="confirm-del">
+  <div class="confirm-box">
+    <p id="confirm-msg">Supprimer cette recette ?</p>
+    <div class="confirm-actions">
+      <button class="btn-cancel" onclick="closeConfirm()">Annuler</button>
+      <button class="btn-primary" style="background:var(--color-text-danger)" id="confirm-ok" onclick="">Supprimer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DAYS=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+const DAYS_FULL=['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+const TAG_LABELS={vege:'Végé',poulet:'Volaille',porc:'Porc',boeuf:'Bœuf',poisson:'Poisson'};
+const CAT_LABELS={proteines:'Protéines & produits frais',legumes:'Fruits & légumes',legumineuses:'Légumineuses',feculents:'Féculents & céréales',epicerie:'Épicerie',laitiers:'Produits laitiers'};
+const CAT_ORDER=['proteines','legumes','legumineuses','feculents','laitiers','epicerie'];
+
+function hasSlot(d,s){return s==='soir'||(s==='midi'&&(d===5||d===6));}
+
+// ── RECETTES BASE (ingrédients en tableau [{name, qty}] sous clé 'items') ────
+// Format interne unifié : r.ings = { cat: [{name,qty}, ...] }
+// Pour les recettes de base on convertit au chargement
+const RECIPES_RAW=[
+  {id:1,name:'Dal de lentilles corail',tag:'vege',time:25,thermomix:true,cookidoo:'https://cookidoo.fr/recipes/recipe/fr-FR/r152827',
+   ings:{legumineuses:['Lentilles corail|300 g'],legumes:['Oignons|2','Tomates pelées|1 boîte (400 g)','Épinards frais|100 g'],epicerie:['Lait de coco|1 brique (200 ml)','Cumin|1 c.à.c','Curcuma|1 c.à.c','Gingembre frais|1 morceau'],feculents:['Riz basmati|300 g']},
+   steps:['Émincer les oignons, râper le gingembre.','Faire revenir 5 min. Ajouter épices 1 min.','Ajouter lentilles, tomates, 600 ml eau. Cuire 20 min.','Incorporer lait de coco et épinards 2 min.','Servir avec riz basmati.']},
+  {id:2,name:'Curry de pois chiches & patate douce',tag:'vege',time:25,thermomix:true,cookidoo:'https://cookidoo.fr/recipes/recipe/fr-FR/r153012',
+   ings:{legumineuses:['Pois chiches|1 boîte (240 g égouttés)'],legumes:['Patate douce|2 (env. 500 g)','Oignons|1','Tomates pelées|1 boîte (400 g)'],epicerie:['Lait de coco|1 brique (200 ml)','Curry en poudre|2 c.à.c','Coriandre fraîche|1 bouquet'],feculents:['Riz basmati|300 g']},
+   steps:['Éplucher patates en dés. Émincer oignon.','Faire revenir oignon 3 min. Ajouter curry 1 min.','Ajouter patates, tomates, 200 ml eau. Cuire 12 min.','Ajouter pois chiches et lait de coco. Mijoter 5 min.','Parsemer coriandre. Servir avec riz.']},
+  {id:3,name:'Pasta e fagioli',tag:'vege',time:30,thermomix:true,cookidoo:'https://cookidoo.fr/recipes/recipe/fr-FR/r208540',
+   ings:{legumineuses:['Haricots blancs|1 boîte (240 g égouttés)'],legumes:['Oignons|1','Carottes|2','Céleri|1 branche','Tomates pelées|1 boîte (400 g)'],epicerie:['Bouillon légumes|1 cube','Romarin|1 branche','Parmesan|50 g'],feculents:['Petites pâtes (ditalini)|200 g']},
+   steps:['Couper finement oignons, carottes, céleri.','Faire revenir 8 min dans huile d\'olive.','Ajouter tomates, bouillon, romarin. Cuire 10 min.','Écraser moitié des haricots pour épaissir.','Ajouter pâtes et haricots. Servir avec parmesan.']},
+  {id:4,name:'Wok de légumes & tofu ferme',tag:'vege',time:20,thermomix:false,cookidoo:null,
+   ings:{proteines:['Tofu ferme|400 g'],legumes:['Poivrons|2','Brocoli|1 (env. 400 g)','Carottes|2','Courgettes|1'],epicerie:['Sauce soja bio|3 c.à.s','Huile de sésame|1 c.à.s','Gingembre frais|1 morceau'],feculents:['Nouilles soba|200 g']},
+   steps:['Couper tofu en cubes. Julienne légumes.','Dorer tofu 5 min. Réserver.','Sauter légumes 5 min.','Ajouter tofu, soja, gingembre, sésame 2 min.','Servir sur nouilles.']},
+  {id:5,name:'Poulet rôti & légumes racines',tag:'poulet',time:55,thermomix:false,cookidoo:null,
+   ings:{proteines:['Poulet entier bio|1,5 kg'],legumes:['Carottes|4','Panais|2','Oignons|2','Pommes de terre|4 (env. 600 g)'],epicerie:['Huile olive|3 c.à.s','Herbes de Provence|1 c.à.s','Ail|4 gousses']},
+   steps:['Préchauffer four 200°C. Couper légumes en gros morceaux.','Huiler légumes dans plat, saler, poivrer.','Frotter poulet avec huile et herbes.','Ajouter ail autour.','Enfourner 50-55 min en arrosant à mi-cuisson.']},
+  {id:6,name:'Escalopes de poulet & quinoa',tag:'poulet',time:20,thermomix:false,cookidoo:null,
+   ings:{proteines:['Escalopes de poulet bio|4 (env. 600 g)'],legumes:['Courgettes|2','Tomates cerises|200 g'],epicerie:['Citron|1','Herbes fraîches|1 bouquet'],feculents:['Quinoa|300 g']},
+   steps:['Cuire quinoa 12 min dans 600 ml eau salée.','Sauter courgettes 5 min.','Cuire escalopes 3-4 min par face.','Mélanger quinoa, courgettes, tomates, citron, herbes.','Servir escalopes sur quinoa.']},
+  {id:7,name:'Filet de cabillaud vapeur & légumes',tag:'poisson',time:20,thermomix:true,cookidoo:'https://cookidoo.fr/recipes/recipe/fr-FR/r68940',
+   ings:{proteines:['Filets de cabillaud|4 (600 g)'],legumes:['Haricots verts|300 g','Carottes|2'],epicerie:['Citron|1','Huile olive|2 c.à.s','Aneth|quelques brins'],feculents:['Riz basmati|300 g']},
+   steps:['Rincer haricots. Couper carottes.','Cuire légumes 15 min vapeur Varoma.','Poser cabillaud. Cuire 8 min.','Cuire riz en parallèle.','Dresser avec huile, citron, aneth.']},
+  {id:8,name:'Gratin de courgettes & ricotta',tag:'vege',time:40,thermomix:false,cookidoo:null,
+   ings:{legumes:['Courgettes|4 (env. 800 g)','Oignons|1'],proteines:['Ricotta|250 g','Œufs|2'],epicerie:['Parmesan|50 g','Noix de muscade|1 pincée','Huile olive|2 c.à.s']},
+   steps:['Préchauffer four 180°C. Couper légumes.','Faire revenir 10 min.','Battre œufs avec ricotta et muscade.','Mélanger légumes et appareil. Verser dans plat.','Parsemer parmesan. Cuire 25 min.']},
+  {id:9,name:'Sauté de porc & champignons',tag:'porc',time:25,thermomix:false,cookidoo:null,
+   ings:{proteines:['Filet de porc bio|600 g'],legumes:['Champignons|300 g','Oignons|1','Ail|2 gousses'],epicerie:['Crème fraîche légère|20 cl','Moutarde|1 c.à.s','Thym|2 branches'],feculents:['Tagliatelles|300 g']},
+   steps:['Couper porc en médaillons. Émincer légumes.','Saisir médaillons 2 min/face. Réserver.','Faire revenir oignons et champignons 5 min.','Ajouter ail, moutarde, crème, thym 3 min.','Remettre porc. Servir avec tagliatelles.']},
+  {id:10,name:'Hachis parmentier lentilles',tag:'vege',time:45,thermomix:true,cookidoo:'https://cookidoo.fr/recipes/recipe/fr-FR/r220451',
+   ings:{legumineuses:['Lentilles vertes|300 g'],legumes:['Carottes|2','Oignons|2','Tomates pelées|1 boîte (400 g)'],epicerie:['Bouillon légumes|2 cubes','Laurier|2 feuilles','Thym|2 branches'],feculents:['Pommes de terre|800 g'],laitiers:['Lait|100 ml','Beurre|30 g']},
+   steps:['Cuire lentilles avec légumes et bouillon 25 min.','Cuire pommes de terre 20 min.','Écraser en purée avec beurre et lait.','Verser lentilles dans plat, recouvrir de purée.','Enfourner 15 min à 200°C.']},
+  {id:11,name:'Risotto aux champignons',tag:'vege',time:35,thermomix:true,cookidoo:'https://cookidoo.fr/recipes/recipe/fr-FR/r68696',
+   ings:{legumes:['Champignons|400 g','Échalotes|2'],epicerie:['Bouillon légumes|1 l','Vin blanc sec|10 cl','Parmesan|80 g','Beurre|30 g'],feculents:['Riz arborio|300 g']},
+   steps:['Émincer échalotes. Trancher champignons. Chauffer bouillon.','Suer échalotes dans beurre. Nacrer riz 2 min.','Déglacer au vin. Incorporer bouillon louche/louche.','Sauter champignons séparément. Réserver.','Incorporer champignons, parmesan, beurre. Mantecatura 2 min.']},
+  {id:12,name:'Pizza maison (pâte TM6)',tag:'vege',time:50,thermomix:true,cookidoo:'https://cookidoo.fr/recipes/recipe/fr-FR/r68672',
+   ings:{epicerie:['Farine T65|500 g','Levure boulangère sèche|7 g','Huile olive|3 c.à.s','Coulis de tomate|200 ml','Mozzarella|2 boules (250 g)'],legumes:['Poivrons|1','Champignons|150 g','Olives|80 g']},
+   steps:['Préparer pâte TM6 programme pizza.','Reposer 20 min.','Préchauffer four 230°C. Étaler pâte.','Garnir coulis, mozzarella, légumes.','Cuire 12-15 min.']},
+  {id:13,name:'Tarte aux légumes & feta',tag:'vege',time:40,thermomix:false,cookidoo:null,
+   ings:{legumes:['Courgettes|2','Tomates|3','Oignons|1'],proteines:['Feta|150 g','Œufs|3'],epicerie:['Pâte brisée bio|1 rouleau','Herbes de Provence|1 c.à.c']},
+   steps:['Préchauffer four 180°C. Foncer moule.','Faire revenir oignon 5 min.','Battre œufs avec feta et herbes.','Garnir tarte et verser appareil.','Poser tomates. Enfourner 30 min.']},
+  {id:14,name:'Soupe de légumes TM6',tag:'vege',time:20,thermomix:true,cookidoo:'https://cookidoo.fr/recipes/recipe/fr-FR/r68524',
+   ings:{legumes:['Carottes|3','Poireaux|2','Pommes de terre|2','Oignons|1'],epicerie:['Bouillon légumes|1 cube','Crème fraîche légère|2 c.à.s']},
+   steps:['Éplucher et couper les légumes.','Mettre dans TM6 avec 800 ml eau et bouillon.','Cuire 20 min / 100°C / vit. 1.','Mixer progressivement jusqu\'à vit. 10.','Incorporer crème fraîche.']},
+  {id:15,name:'Poulet au citron & olives',tag:'poulet',time:40,thermomix:false,cookidoo:null,
+   ings:{proteines:['Cuisses de poulet bio|4'],legumes:['Oignons|2','Ail|4 gousses','Citrons|2'],epicerie:['Olives vertes|100 g','Bouillon poulet|1 cube','Cumin|1 c.à.c','Paprika|1 c.à.c','Huile olive|3 c.à.s']},
+   steps:['Assaisonner cuisses avec épices.','Dorer 5 min/face. Réserver.','Faire revenir oignons et ail 5 min.','Remettre poulet avec bouillon, citrons, olives.','Couvrir et mijoter 25 min.']},
+  {id:16,name:'Saumon teriyaki & riz',tag:'poisson',time:20,thermomix:false,cookidoo:null,
+   ings:{proteines:['Pavés de saumon bio|4 (env. 600 g)'],legumes:['Brocoli|1 (env. 400 g)','Carottes|2'],epicerie:['Sauce soja bio|3 c.à.s','Miel|1 c.à.s','Gingembre frais|1 morceau','Huile de sésame|1 c.à.c'],feculents:['Riz complet|300 g']},
+   steps:['Cuire le riz complet.','Mélanger soja, miel, gingembre pour sauce.','Blanchir brocoli et carottes 5 min.','Cuire saumon 3 min/face. Verser sauce.','Caraméliser 2 min. Servir avec riz.']},
+  {id:17,name:'Blanquette de veau légère',tag:'boeuf',time:60,thermomix:true,cookidoo:'https://cookidoo.fr/recipes/recipe/fr-FR/r68713',
+   ings:{proteines:['Veau à blanquette|800 g'],legumes:['Carottes|3','Poireaux|1','Oignons|1','Champignons|200 g'],epicerie:['Bouillon poulet|2 cubes','Laurier|2 feuilles','Thym|2 branches'],laitiers:['Crème fraîche légère|20 cl','Jaunes d\'œufs|2'],feculents:['Riz basmati|300 g']},
+   steps:['Couper veau en cubes. Préparer légumes.','TM6 : veau, légumes, bouillon, herbes. 45 min / 100°C.','Filtrer bouillon dans casserole.','Réduire 5 min. Incorporer jaunes et crème.','Remettre viande et légumes. Servir avec riz.']},
+  {id:18,name:'Galettes de légumes & houmous',tag:'vege',time:30,thermomix:false,cookidoo:null,
+   ings:{legumes:['Courgettes|2','Carottes|2','Oignons|1'],proteines:['Œufs|2','Houmous|200 g'],epicerie:['Farine|4 c.à.s','Cumin|1 c.à.c','Herbes fraîches|1 bouquet','Huile olive|3 c.à.s']},
+   steps:['Râper légumes. Presser dans torchon.','Mélanger avec œufs, farine, cumin.','Former galettes. Cuire 3-4 min/face.','Égoutter sur papier.','Servir avec houmous.']},
+  {id:19,name:'Poulet tikka masala',tag:'poulet',time:35,thermomix:true,cookidoo:'https://cookidoo.fr/recipes/recipe/fr-FR/r890234',
+   ings:{proteines:['Escalopes de poulet bio|600 g'],legumes:['Oignons|2','Tomates pelées|1 boîte (400 g)','Ail|3 gousses','Gingembre frais|1 morceau'],epicerie:['Tikka masala en pâte|2 c.à.s','Lait de coco|1 brique (200 ml)','Coriandre fraîche|1 bouquet'],feculents:['Riz basmati|300 g']},
+   steps:['Couper poulet. Mariner 10 min avec pâte tikka.','Dorer 5 min. Réserver.','Faire revenir oignons, ail, gingembre 5 min.','Ajouter tomates et lait de coco. Mijoter 10 min.','Remettre poulet 5 min. Servir avec riz.']},
+  {id:20,name:'Pâtes au pesto & légumes grillés',tag:'vege',time:25,thermomix:false,cookidoo:null,
+   ings:{legumes:['Courgettes|2','Poivrons|2','Tomates cerises|150 g'],epicerie:['Pesto basilic bio|4 c.à.s','Parmesan|40 g','Pignons de pin|30 g','Huile olive|2 c.à.s'],feculents:['Penne bio|350 g']},
+   steps:['Griller courgettes et poivrons 15 min au four 220°C.','Cuire pâtes al dente.','Égoutter avec une louche d\'eau. Mélanger au pesto.','Incorporer légumes et tomates cerises.','Parsemer parmesan et pignons.']},
+  {id:21,name:'Filet mignon & sauce cidre-pommes',tag:'porc',time:35,thermomix:false,cookidoo:null,
+   ings:{proteines:['Filet mignon de porc bio|600 g'],legumes:['Pommes|3','Échalotes|3'],epicerie:['Cidre brut|15 cl','Moutarde à l\'ancienne|1 c.à.s','Thym|2 branches','Crème fraîche légère|10 cl'],feculents:['Pommes de terre|600 g']},
+   steps:['Saisir filet 3 min sur toutes les faces.','Revenir échalotes 3 min. Déglacer au cidre.','Ajouter moutarde, thym, crème. Réduire 2 min.','Couvrir, cuire 20 min à feu doux.','Ajouter pommes coupées 5 min avant fin.']},
+  {id:22,name:'Aubergines à la parmigiana',tag:'vege',time:50,thermomix:false,cookidoo:null,
+   ings:{legumes:['Aubergines|3 (env. 800 g)','Tomates pelées|2 boîtes (800 g)','Ail|3 gousses'],epicerie:['Mozzarella|2 boules (250 g)','Parmesan|60 g','Basilic frais|1 bouquet','Huile olive|4 c.à.s']},
+   steps:['Trancher aubergines. Dégorger au sel 20 min.','Faire sauce tomate ail-basilic 15 min.','Dorer aubergines.','Alterner couches aubergines, sauce, mozzarella.','Parsemer parmesan. Enfourner 25 min à 180°C.']},
+  {id:23,name:'Soupe miso & tofu',tag:'vege',time:15,thermomix:false,cookidoo:null,
+   ings:{proteines:['Tofu soyeux|300 g'],legumes:['Oignons nouveaux|3','Algues wakamé séchées|10 g'],epicerie:['Pâte miso|3 c.à.s'],feculents:['Nouilles soba|200 g']},
+   steps:['Porter 1 l eau à frémissement.','Réhydrater algues 5 min.','Couper tofu en petits cubes.','Diluer miso hors feu. Incorporer.','Ajouter tofu, algues, oignons. Servir immédiatement.']},
+  {id:24,name:'Tartare de saumon & avocat',tag:'poisson',time:15,thermomix:false,cookidoo:null,
+   ings:{proteines:['Saumon frais sashimi|400 g'],legumes:['Avocats|2','Concombre|1','Citrons verts|2'],epicerie:['Sauce soja bio|2 c.à.s','Huile de sésame|1 c.à.c','Aneth|quelques brins'],feculents:['Pain de seigle|4 tranches']},
+   steps:['Couper saumon en dés de 1 cm.','Assaisonner avec soja, sésame, citron vert.','Couper avocat et concombre en dés.','Mélanger délicatement. Assaisonner.','Servir sur pain de seigle grillé.']},
+  {id:25,name:'Poulet façon stroganoff',tag:'poulet',time:30,thermomix:false,cookidoo:null,
+   ings:{proteines:['Blancs de poulet bio|600 g'],legumes:['Champignons|300 g','Oignons|1','Ail|2 gousses'],epicerie:['Crème fraîche légère|20 cl','Paprika fumé|1 c.à.s','Moutarde|1 c.à.c'],feculents:['Riz basmati|300 g']},
+   steps:['Couper poulet en lamelles. Émincer légumes.','Dorer poulet 5 min. Réserver.','Revenir oignons et champignons 5 min.','Ajouter ail, paprika, moutarde, crème 3 min.','Remettre poulet. Servir avec riz.']},
+  {id:26,name:'Poêlée de lentilles & légumes d\'hiver',tag:'vege',time:30,thermomix:false,cookidoo:null,
+   ings:{legumineuses:['Lentilles vertes|250 g'],legumes:['Carottes|3','Panais|1','Oignons|1','Ail|2 gousses'],epicerie:['Bouillon légumes|1 cube','Cumin|1 c.à.c','Vinaigre balsamique|1 c.à.s','Huile olive|2 c.à.s']},
+   steps:['Cuire lentilles dans bouillon 20 min. Égoutter.','Couper carottes et panais en dés.','Revenir oignons, ail, carottes, panais 10 min.','Ajouter lentilles, cumin, balsamique. Mélanger.','Servir tiède ou chaud.']},
+  {id:27,name:'Tacos maison poulet & avocat',tag:'poulet',time:25,thermomix:false,cookidoo:null,
+   ings:{proteines:['Escalopes de poulet bio|500 g'],legumes:['Avocats|2','Tomates|2','Oignon rouge|1','Citron vert|1'],epicerie:['Paprika|1 c.à.c','Cumin|1 c.à.c','Coriandre fraîche|1 bouquet'],feculents:['Tortillas blé complet|8']},
+   steps:['Assaisonner poulet avec épices. Cuire 4 min/face.','Couper poulet en lamelles.','Écraser avocats avec citron vert. Guacamole.','Couper tomates et oignon rouge finement.','Garnir tortillas.']},
+  {id:28,name:'Frittata aux légumes de saison',tag:'vege',time:20,thermomix:false,cookidoo:null,
+   ings:{proteines:['Œufs|6'],legumes:['Courgettes|1','Poivrons|1','Oignons|1','Épinards frais|80 g'],epicerie:['Parmesan|40 g','Herbes de Provence|1 c.à.c','Huile olive|2 c.à.s'],laitiers:['Lait|3 c.à.s']},
+   steps:['Préchauffer four 180°C. Couper légumes en dés. Revenir 5 min.','Ajouter épinards 2 min.','Battre œufs avec lait, parmesan, herbes.','Verser sur légumes dans poêle allant au four.','Cuire 3 min sur feu + 10 min au four.']},
+  {id:29,name:'Cabillaud à la provençale',tag:'poisson',time:30,thermomix:false,cookidoo:null,
+   ings:{proteines:['Dos de cabillaud|4 portions (600 g)'],legumes:['Tomates|4','Poivrons|2','Oignons|1','Ail|3 gousses'],epicerie:['Olives noires|60 g','Herbes de Provence|1 c.à.s','Huile olive|3 c.à.s'],feculents:['Riz basmati|300 g']},
+   steps:['Préchauffer four 200°C.','Couper légumes. Disposer dans plat avec huile, herbes, olives.','Enfourner légumes 15 min.','Poser poisson sur légumes. Saler, poivrer.','Enfourner 12 min. Servir avec riz.']},
+  {id:30,name:'Bol buddha végé & tahini',tag:'vege',time:20,thermomix:false,cookidoo:null,
+   ings:{legumineuses:['Pois chiches rôtis|1 boîte (240 g égouttés)'],legumes:['Brocoli|1','Carottes|2','Épinards frais|80 g','Avocat|1'],epicerie:['Tahini|3 c.à.s','Jus de citron|2 c.à.s','Sauce soja bio|1 c.à.s','Graines de sésame|1 c.à.s'],feculents:['Quinoa ou riz complet|250 g']},
+   steps:['Cuire quinoa.','Rôtir pois chiches avec paprika 15 min à 200°C.','Blanchir brocoli et carottes 5 min.','Sauce tahini : tahini, citron, soja, eau.','Dresser bol avec tous les éléments et graines.']},
+  {id:31,name:'Gratin dauphinois',tag:'vege',time:70,thermomix:false,cookidoo:null,
+   ings:{legumes:['Pommes de terre|1 kg','Ail|2 gousses'],laitiers:['Crème fraîche entière|40 cl','Lait|20 cl','Gruyère râpé|100 g'],epicerie:['Noix de muscade|1 pincée','Beurre|20 g']},
+   steps:['Préchauffer four 160°C. Trancher pommes de terre à 3 mm.','Frotter plat avec ail et beurrer.','Disposer en couches, saler, poivrer, muscade.','Verser crème et lait chauds.','Parsemer gruyère. Cuire 60 min.']},
+  {id:32,name:'Aiguillettes de canard & lentilles',tag:'poulet',time:25,thermomix:false,cookidoo:null,
+   ings:{proteines:['Aiguillettes de canard|500 g'],legumineuses:['Lentilles vertes|250 g'],legumes:['Échalotes|3','Ail|2 gousses'],epicerie:['Miel|1 c.à.s','Vinaigre balsamique|2 c.à.s','Thym|2 branches','Huile olive|2 c.à.s']},
+   steps:['Cuire lentilles avec thym 20 min. Égoutter.','Émincer échalotes. Revenir 3 min.','Saisir aiguillettes 2 min/face.','Déglacer avec miel et balsamique.','Dresser lentilles avec aiguillettes et sauce.']},
+  {id:33,name:'Soupe de pois cassés au jambon',tag:'porc',time:45,thermomix:true,cookidoo:'https://cookidoo.fr/recipes/recipe/fr-FR/r68530',
+   ings:{legumineuses:['Pois cassés|300 g'],proteines:['Talon de jambon|200 g'],legumes:['Carottes|2','Oignons|1','Poireaux|1'],epicerie:['Bouillon légumes|2 cubes','Laurier|2 feuilles','Thym|2 branches']},
+   steps:['Rincer pois cassés. Couper légumes.','TM6 : tout avec 1,2 l eau.','Cuire 40 min / 100°C / vit. 1.','Retirer jambon, effilocher. Mixer soupe.','Remettre jambon. Rectifier.']},
+  {id:34,name:'Crevettes sautées & riz thaï',tag:'poisson',time:20,thermomix:false,cookidoo:null,
+   ings:{proteines:['Crevettes roses décortiquées|400 g'],legumes:['Poivrons|2','Oignons nouveaux|4','Ail|2 gousses','Gingembre frais|1 morceau'],epicerie:['Sauce soja bio|2 c.à.s','Sauce huître|1 c.à.s','Huile de sésame|1 c.à.c','Coriandre fraîche|1 bouquet'],feculents:['Riz jasmin|300 g']},
+   steps:['Cuire riz jasmin.','Couper poivrons. Hacher ail et gingembre.','Sauter poivrons 3 min à feu vif.','Ajouter crevettes, ail, gingembre. Sauter 3 min.','Finir avec soja, sauce huître, sésame. Servir avec riz.']},
+  {id:35,name:'Ratatouille au four',tag:'vege',time:60,thermomix:false,cookidoo:null,
+   ings:{legumes:['Aubergines|2','Courgettes|2','Poivrons|2','Tomates|4','Oignons|2','Ail|4 gousses'],epicerie:['Herbes de Provence|2 c.à.s','Huile olive|5 c.à.s','Thym|3 branches']},
+   steps:['Préchauffer four 180°C.','Couper tous légumes en rondelles fines.','Disposer en rosace dans grand plat.','Arroser huile, ajouter ail, herbes.','Enfourner 45-50 min. Déguster chaud ou froid.']},
+  {id:36,name:'Bœuf bourguignon simplifié',tag:'boeuf',time:90,thermomix:true,cookidoo:'https://cookidoo.fr/recipes/recipe/fr-FR/r68711',
+   ings:{proteines:['Bœuf à braiser bio|800 g','Lardons fumés|100 g'],legumes:['Carottes|3','Oignons|2','Champignons|200 g','Ail|3 gousses'],epicerie:['Vin rouge|25 cl','Bouillon bœuf|2 cubes','Concentré de tomate|1 c.à.s','Laurier|2 feuilles','Thym|2 branches']},
+   steps:['Couper bœuf en cubes de 4 cm.','Revenir lardons. Saisir bœuf par lots.','TM6 : bœuf, légumes, vin, bouillon, herbes.','Cuire 75 min / 100°C / mijotage.','Rectifier. Servir avec pommes de terre vapeur.']},
+  {id:37,name:'Poisson en papillote citron-fenouil',tag:'poisson',time:25,thermomix:false,cookidoo:null,
+   ings:{proteines:['Filets de daurade ou bar|4 (600 g)'],legumes:['Fenouil|1','Tomates cerises|150 g','Citron|1'],epicerie:['Huile olive|3 c.à.s','Aneth ou basilic|1 bouquet','Ail|2 gousses'],feculents:['Pommes de terre nouvelles|500 g']},
+   steps:['Préchauffer four 200°C. Cuire pommes de terre 15 min.','Émincer fenouil en lamelles.','Préparer papillotes : fenouil, tomates, poisson.','Arroser huile, citron, ail, herbes.','Fermer et cuire 15 min.']},
+  {id:38,name:'Haricots blancs & chorizo doux',tag:'porc',time:30,thermomix:false,cookidoo:null,
+   ings:{legumineuses:['Haricots blancs|2 boîtes (480 g égouttés)'],proteines:['Chorizo doux|150 g'],legumes:['Tomates pelées|1 boîte (400 g)','Oignons|1','Ail|3 gousses','Poivrons|1'],epicerie:['Paprika fumé|1 c.à.c','Thym|2 branches','Huile olive|2 c.à.s']},
+   steps:['Couper chorizo en rondelles. Émincer légumes.','Revenir chorizo 3 min. Réserver.','Revenir oignon, ail, poivron 5 min.','Ajouter tomates, paprika, thym. Mijoter 10 min.','Ajouter haricots et chorizo. Mijoter 10 min.']},
+  {id:39,name:'Poulet yakitori & légumes',tag:'poulet',time:25,thermomix:false,cookidoo:null,
+   ings:{proteines:['Cuisses de poulet désossées bio|600 g'],legumes:['Poivrons|2','Oignons nouveaux|4','Courgettes|1'],epicerie:['Sauce soja bio|4 c.à.s','Miel|2 c.à.s','Gingembre frais|1 morceau','Huile de sésame|1 c.à.c'],feculents:['Riz basmati|300 g']},
+   steps:['Couper poulet et légumes en cubes. Piquer brochettes.','Mélanger soja, miel, gingembre pour marinade.','Mariner 15 min.','Cuire brochettes 4 min/face en badigeonnant.','Servir avec riz.']},
+  // 15 nouvelles recettes
+  {id:40,name:'Velouté de butternut & lait de coco',tag:'vege',time:30,thermomix:true,cookidoo:'https://cookidoo.fr/recipes/recipe/fr-FR/r153010',
+   ings:{legumes:['Butternut|1 (env. 800 g)','Oignons|1','Ail|2 gousses','Gingembre frais|1 morceau'],epicerie:['Lait de coco|1 brique (200 ml)','Bouillon légumes|1 cube','Curry doux|1 c.à.c','Huile olive|2 c.à.s']},
+   steps:['Éplucher et couper butternut en cubes.','Revenir oignon, ail, gingembre 3 min.','Ajouter butternut, bouillon, curry. Cuire 20 min.','Mixer finement. Incorporer lait de coco.','Rectifier assaisonnement et servir.']},
+  {id:41,name:'Lasagnes aux légumes',tag:'vege',time:60,thermomix:false,cookidoo:null,
+   ings:{legumes:['Aubergines|1','Courgettes|2','Poivrons|2','Oignons|1','Ail|3 gousses'],epicerie:['Coulis de tomate|500 ml','Herbes de Provence|1 c.à.s','Lasagnes sèches|12 feuilles'],laitiers:['Béchamel légère|500 ml','Gruyère râpé|100 g']},
+   steps:['Préchauffer four 180°C. Couper légumes en dés. Faire revenir 10 min.','Ajouter coulis et herbes. Mijoter 10 min.','Alterner couches pâtes, légumes, béchamel.','Terminer par béchamel et gruyère.','Enfourner 35 min.']},
+  {id:42,name:'Poulet basquaise',tag:'poulet',time:50,thermomix:false,cookidoo:null,
+   ings:{proteines:['Cuisses de poulet bio|4'],legumes:['Poivrons rouges et verts|3','Tomates|4','Oignons|2','Ail|3 gousses'],epicerie:['Piment d\'Espelette|1 c.à.c','Thym|2 branches','Laurier|2 feuilles','Huile olive|3 c.à.s']},
+   steps:['Faire dorer les cuisses 5 min/face. Réserver.','Revenir oignons, ail, poivrons 10 min.','Ajouter tomates, thym, laurier, piment.','Remettre poulet. Couvrir et mijoter 25 min.','Rectifier assaisonnement et servir.']},
+  {id:43,name:'Pois chiches rôtis & épinards',tag:'vege',time:20,thermomix:false,cookidoo:null,
+   ings:{legumineuses:['Pois chiches|2 boîtes (480 g égouttés)'],legumes:['Épinards frais|300 g','Ail|3 gousses','Citron|1'],epicerie:['Paprika fumé|1 c.à.c','Cumin|1 c.à.c','Huile olive|3 c.à.s']},
+   steps:['Sécher les pois chiches. Mélanger avec huile et épices.','Rôtir 20 min à 200°C en remuant à mi-cuisson.','Faire revenir ail dans l\'huile 1 min.','Ajouter épinards et faire tomber 3 min.','Dresser épinards avec pois chiches croustillants et jus de citron.']},
+  {id:44,name:'Daurade au four & fenouil',tag:'poisson',time:35,thermomix:false,cookidoo:null,
+   ings:{proteines:['Daurades entières|2 (env. 400 g chacune)'],legumes:['Fenouil|2','Tomates cerises|200 g','Oignon|1','Citron|1'],epicerie:['Huile olive|4 c.à.s','Thym|3 branches','Ail|3 gousses']},
+   steps:['Préchauffer four 200°C.','Émincer fenouil et oignon. Disposer dans plat.','Inciser les daurades. Glisser ail et thym.','Poser poissons sur légumes. Arroser huile et citron.','Enfourner 25-30 min.']},
+  {id:45,name:'Boulettes de viande sauce tomate',tag:'boeuf',time:40,thermomix:false,cookidoo:null,
+   ings:{proteines:['Bœuf haché bio|600 g'],legumes:['Oignons|2','Ail|3 gousses','Tomates pelées|2 boîtes (800 g)'],epicerie:['Parmesan|50 g','Persil|1 bouquet','Chapelure|3 c.à.s','Huile olive|3 c.à.s'],feculents:['Spaghettis|350 g']},
+   steps:['Mélanger viande, chapelure, parmesan, persil, ail. Former boulettes.','Faire dorer les boulettes 5 min. Réserver.','Faire revenir oignon dans le même beurre.','Ajouter tomates. Mijoter 15 min.','Remettre boulettes 10 min. Servir avec spaghettis.']},
+  {id:46,name:'Wraps de dinde & légumes croquants',tag:'poulet',time:15,thermomix:false,cookidoo:null,
+   ings:{proteines:['Escalopes de dinde bio|400 g'],legumes:['Carottes|2','Concombre|1','Avocat|1','Salade verte|4 feuilles'],epicerie:['Sauce hummus|4 c.à.s','Citron|1','Paprika|1 c.à.c'],feculents:['Wraps blé complet|4']},
+   steps:['Cuire dinde assaisonnée 3-4 min/face. Laisser reposer.','Couper dinde en lamelles.','Couper carottes, concombre et avocat en julienne.','Tartiner wraps avec hummus.','Garnir de dinde et légumes. Rouler serré.']},
+  {id:47,name:'Soupe de tomates rôties & basilic',tag:'vege',time:40,thermomix:true,cookidoo:'https://cookidoo.fr/recipes/recipe/fr-FR/r68525',
+   ings:{legumes:['Tomates|1,2 kg','Oignons|2','Ail|4 gousses'],epicerie:['Basilic frais|1 gros bouquet','Bouillon légumes|1 cube','Huile olive|4 c.à.s','Sucre|1 c.à.c']},
+   steps:['Couper tomates et oignons. Disposer dans plat avec ail et huile.','Rôtir 25 min à 200°C jusqu\'à caramélisation.','Mettre dans TM6 avec bouillon et basilic.','Mixer 1 min progressivement.','Rectifier sel, sucre. Servir avec croutons.']},
+  {id:48,name:'Tajine de poulet aux abricots',tag:'poulet',time:45,thermomix:false,cookidoo:null,
+   ings:{proteines:['Cuisses de poulet bio|4'],legumes:['Oignons|2','Ail|3 gousses'],epicerie:['Abricots secs|100 g','Ras el hanout|2 c.à.c','Miel|1 c.à.s','Bouillon poulet|1 cube','Amandes effilées|40 g','Huile olive|3 c.à.s'],feculents:['Couscous|300 g']},
+   steps:['Assaisonner poulet avec ras el hanout.','Dorer 5 min/face. Réserver.','Revenir oignons et ail 5 min.','Remettre poulet avec bouillon, abricots et miel. Couvrir 30 min.','Préparer couscous. Parsemer amandes grillées.']},
+  {id:49,name:'Quiche saumon & poireaux',tag:'poisson',time:45,thermomix:false,cookidoo:null,
+   ings:{proteines:['Saumon fumé|200 g','Œufs|3'],legumes:['Poireaux|2'],epicerie:['Pâte brisée bio|1 rouleau'],laitiers:['Crème fraîche|20 cl','Gruyère râpé|60 g']},
+   steps:['Préchauffer four 180°C. Foncer moule avec pâte.','Émincer et faire fondre les poireaux 10 min.','Battre œufs avec crème, sel, poivre.','Disposer saumon et poireaux. Verser appareil. Parsemer gruyère.','Enfourner 30 min.']},
+  {id:50,name:'Chili végétarien',tag:'vege',time:35,thermomix:true,cookidoo:null,
+   ings:{legumineuses:['Haricots rouges|1 boîte (240 g égouttés)','Pois chiches|1 boîte (240 g égouttés)'],legumes:['Oignons|1','Poivrons|2','Tomates pelées|1 boîte (400 g)','Maïs|1 boîte (200 g égouttés)'],epicerie:['Cumin|2 c.à.c','Paprika fumé|1 c.à.c','Piment doux|1 c.à.c','Chocolat noir|1 carré','Huile olive|2 c.à.s'],feculents:['Riz basmati ou tortillas|300 g']},
+   steps:['Revenir oignon et poivrons 5 min.','Ajouter épices, mélanger 1 min.','Ajouter tomates, haricots, pois chiches, maïs.','Mijoter 20 min. Ajouter chocolat noir.','Servir avec riz ou tortillas.']},
+  {id:51,name:'Poêlée de gnocchis & épinards',tag:'vege',time:15,thermomix:false,cookidoo:null,
+   ings:{feculents:['Gnocchis de pomme de terre|500 g'],legumes:['Épinards frais|200 g','Ail|2 gousses','Tomates cerises|150 g'],epicerie:['Huile olive|3 c.à.s','Parmesan|50 g'],laitiers:['Ricotta|150 g']},
+   steps:['Poêler gnocchis dans l\'huile 5 min jusqu\'à coloration dorée.','Réserver. Faire revenir ail 1 min.','Ajouter tomates cerises 3 min.','Ajouter épinards, faire tomber 2 min.','Remettre gnocchis. Servir avec ricotta et parmesan.']},
+  {id:52,name:'Côtelettes d\'agneau & taboulé',tag:'boeuf',time:25,thermomix:false,cookidoo:null,
+   ings:{proteines:['Côtelettes d\'agneau bio|8'],legumes:['Tomates|3','Concombre|1','Oignon rouge|1','Menthe fraîche|1 bouquet','Persil|1 bouquet'],epicerie:['Jus de citron|3 c.à.s','Huile olive|4 c.à.s'],feculents:['Semoule fine|200 g']},
+   steps:['Préparer semoule : verser eau bouillante, couvrir 5 min, égrainer.','Couper finement légumes et herbes. Mélanger avec semoule, citron, huile.','Réserver taboulé 30 min.','Assaisonner côtelettes. Cuire 3 min/face.','Servir côtelettes avec taboulé frais.']},
+  {id:53,name:'Omelette aux légumes & fromage',tag:'vege',time:15,thermomix:false,cookidoo:null,
+   ings:{proteines:['Œufs|6'],legumes:['Poivrons|1','Oignons|1','Courgettes|1'],epicerie:['Herbes de Provence|1 c.à.c','Huile olive|2 c.à.s'],laitiers:['Fromage râpé (emmental)|60 g']},
+   steps:['Couper légumes en petits dés. Faire revenir 5 min.','Battre œufs avec sel, poivre, herbes.','Verser œufs sur légumes dans poêle.','Cuire 3-4 min en soulevant les bords.','Parsemer fromage, plier, servir.']},
+  {id:54,name:'Spaghettis all\'amatriciana',tag:'porc',time:25,thermomix:false,cookidoo:null,
+   ings:{proteines:['Lardons fumés ou guanciale|150 g'],legumes:['Oignon rouge|1','Ail|2 gousses'],epicerie:['Tomates pelées|1 boîte (400 g)','Piment séché|1','Huile olive|2 c.à.s','Parmesan ou pecorino|60 g'],feculents:['Spaghettis|350 g']},
+   steps:['Faire revenir lardons à sec 5 min jusqu\'à croustillant.','Ajouter oignon et ail 3 min.','Ajouter tomates et piment. Mijoter 15 min.','Cuire pâtes al dente.','Égoutter avec eau de cuisson. Mélanger sauce et parmesan.']},
+];
+
+// Convertit le format pipe "Nom|quantité" en objets {name, qty}
+function parseRawIngs(rawIngs){
+  const result={};
+  for(const [cat,items] of Object.entries(rawIngs)){
+    result[cat]=items.map(s=>{const p=s.split('|');return{name:p[0].trim(),qty:p[1]||''};});
+  }
+  return result;
+}
+
+const RECIPES_BASE=RECIPES_RAW.map(r=>({
+  ...r,tagLabel:TAG_LABELS[r.tag]||r.tag,
+  ings:parseRawIngs(r.ings)
+}));
+
+let customRecipes=[];
+let nextId=200;
+function getAllRecipes(){return[...RECIPES_BASE,...customRecipes];}
+
+let weekOffset=0,meals={},checked={},recipeFilter='tous',recipeSearch='',manualList=[],pendingRecipe=null;
+let groupMode='cat';
+let modalRecipeDayIdx=null,modalRecipeSlot=null;
+let editingRecipeId=null; // null = nouvelle recette, sinon id à modifier
+
+// ── SAUVEGARDE LOCALSTORAGE ───────────────────────────────────────────────────
+const LS_KEY='planif_famille_v5';
+function saveToLS(){
+  try{
+    localStorage.setItem(LS_KEY,JSON.stringify({meals,customRecipes,manualList,checked,weekOffset,nextId}));
+    const now=new Date();
+    document.getElementById('save-status').textContent='Sauvegardé à '+now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
+  }catch(e){document.getElementById('save-status').textContent='Erreur sauvegarde locale';}
+}
+function loadFromLS(){
+  try{
+    const raw=localStorage.getItem(LS_KEY);
+    if(!raw)return;
+    const d=JSON.parse(raw);
+    if(d.meals)meals=d.meals;
+    if(d.customRecipes)customRecipes=d.customRecipes;
+    if(d.manualList)manualList=d.manualList;
+    if(d.checked)checked=d.checked;
+    if(d.weekOffset!=null)weekOffset=d.weekOffset;
+    if(d.nextId)nextId=d.nextId;
+  }catch(e){}
+}
+function exportData(){
+  const data={version:5,exported:new Date().toISOString(),meals,customRecipes,manualList,checked};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='planificateur_repas_'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();
+}
+function importData(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const d=JSON.parse(ev.target.result);
+      if(d.meals)meals=d.meals;
+      if(d.customRecipes)customRecipes=d.customRecipes;
+      if(d.manualList)manualList=d.manualList;
+      if(d.checked)checked=d.checked;
+      // recalcul nextId
+      if(customRecipes.length)nextId=Math.max(...customRecipes.map(r=>r.id))+1;
+      saveToLS();renderGrid();renderRecipes();renderCourses();updateCoursesBadge();
+      document.getElementById('save-status').textContent='Import réussi ✓';
+    }catch(err){alert('Fichier invalide ou corrompu.');}
+    e.target.value='';
+  };
+  reader.readAsText(file);
+}
+function persist(){saveToLS();}
+
+// ── TABS ─────────────────────────────────────────────────────────────────────
+function switchTab(t){
+  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',['planning','recettes','courses'][i]===t));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+t).classList.add('active');
+  if(t==='courses')renderCourses();
+}
+
+// ── PLANNING ─────────────────────────────────────────────────────────────────
+function getMonday(off){const d=new Date(),day=d.getDay(),diff=d.getDate()-day+(day===0?-6:1);return new Date(new Date(d).setDate(diff+off*7));}
+function weekNum(d){const j=new Date(d.getFullYear(),0,1);return Math.ceil((((d-j)/86400000)+j.getDay()+1)/7);}
+function changeWeek(dir){weekOffset+=dir;persist();renderGrid();}
+function getMeal(d,s){const k='w'+weekOffset;return meals[k]&&meals[k][d]&&meals[k][d][s]||null;}
+function setMeal(d,s,r){const k='w'+weekOffset;if(!meals[k])meals[k]={};if(!meals[k][d])meals[k][d]={};meals[k][d][s]=r;persist();}
+
+function makeCell(dayIdx,slot){
+  const cell=document.createElement('div');
+  if(!hasSlot(dayIdx,slot)){cell.className='meal-cell disabled';return cell;}
+  const meal=getMeal(dayIdx,slot);
+  cell.className='meal-cell'+(meal?'':' empty');
+  if(meal){
+    cell.innerHTML='<span class="meal-tag tag-'+meal.tag+'">'+meal.tagLabel+'</span>'+
+      '<span class="meal-name">'+meal.name+'</span>'+
+      '<span class="meal-time">'+meal.time+' min'+(meal.thermomix?' · TM':'')+'</span>';
+    cell.onclick=()=>openCellDetailModal(dayIdx,slot);
+  } else {
+    cell.innerHTML='<span class="add-icon">+</span>';
+    cell.onclick=()=>openRecipeModal(dayIdx,slot);
+  }
+  return cell;
+}
+
+function renderGrid(){
+  const mon=getMonday(weekOffset);
+  document.getElementById('week-label').textContent='Sem. '+weekNum(mon);
+  const grid=document.getElementById('meal-grid');grid.innerHTML='';
+  const today=new Date();
+  grid.appendChild(document.createElement('div'));
+  for(let d=0;d<7;d++){
+    const date=new Date(mon);date.setDate(mon.getDate()+d);
+    const isTod=date.toDateString()===today.toDateString();
+    const h=document.createElement('div');h.className='day-header'+(isTod?' today':'');
+    h.innerHTML='<div class="day-name">'+DAYS[d]+'</div><div class="day-date">'+date.getDate()+'/'+(date.getMonth()+1)+'</div>';
+    grid.appendChild(h);
+  }
+  const lblMidi=document.createElement('div');lblMidi.className='slot-label';lblMidi.innerHTML='<span>Midi</span>';
+  grid.appendChild(lblMidi);for(let d=0;d<7;d++)grid.appendChild(makeCell(d,'midi'));
+  const lblSoir=document.createElement('div');lblSoir.className='slot-label';lblSoir.innerHTML='<span>Soir</span>';
+  grid.appendChild(lblSoir);for(let d=0;d<7;d++)grid.appendChild(makeCell(d,'soir'));
+  updateCoursesBadge();
+}
+
+// ── MODAL cellule remplie ─────────────────────────────────────────────────────
+function openCellDetailModal(dayIdx,slot){
+  const meal=getMeal(dayIdx,slot);if(!meal)return;
+  const r=getAllRecipes().find(x=>x.id===meal.id)||meal;
+  document.getElementById('mdet-title').textContent=r.name;
+  let html=buildDetailHTML(r);
+  html+='<div class="detail-actions">'+
+    '<button class="rc-btn-plan" onclick="closeDetailModal();openRecipeModal('+dayIdx+',\''+slot+'\')">Changer</button>'+
+    '<button class="rc-btn rc-btn-danger" onclick="setMeal('+dayIdx+',\''+slot+'\',null);closeDetailModal();renderGrid();">✕ Effacer</button>'+
+    (r.cookidoo?'<a class="cookidoo-link" href="'+r.cookidoo+'" target="_blank">Cookidoo ↗</a>':'')+
+    '</div>';
+  document.getElementById('mdet-body').innerHTML=html;
+  document.getElementById('modal-detail').classList.add('open');
+}
+
+// ── MODAL choisir recette depuis planning ─────────────────────────────────────
+function openRecipeModal(dayIdx,slot){
+  modalRecipeDayIdx=dayIdx;modalRecipeSlot=slot;
+  document.getElementById('mrec-title').textContent=DAYS_FULL[dayIdx]+' — '+(slot==='midi'?'Midi':'Soir');
+  document.getElementById('mrec-search').value='';
+  populateRecipeModal('');
+  document.getElementById('modal-recipe').classList.add('open');
+}
+function filterModalRecipes(q){populateRecipeModal(q.toLowerCase());}
+function populateRecipeModal(q){
+  const body=document.getElementById('mrec-body');body.innerHTML='';
+  const filtered=getAllRecipes().filter(r=>!q||r.name.toLowerCase().includes(q));
+  if(!filtered.length){body.innerHTML='<div style="font-size:12px;color:var(--color-text-tertiary);padding:8px 0">Aucune recette trouvée.</div>';return;}
+  filtered.forEach(r=>{
+    const btn=document.createElement('button');btn.className='sug-btn';
+    btn.innerHTML='<span class="meal-tag tag-'+r.tag+'" style="font-size:10px;padding:1px 5px;border-radius:10px">'+r.tagLabel+'</span>'+
+      '<span style="flex:1">'+r.name+'</span><span style="font-size:10px;color:var(--color-text-tertiary)">'+r.time+'min'+(r.thermomix?' · TM':'')+'</span>';
+    btn.onclick=()=>{setMeal(modalRecipeDayIdx,modalRecipeSlot,r);closeRecipeModal();renderGrid();};
+    body.appendChild(btn);
+  });
+}
+function closeRecipeModal(){document.getElementById('modal-recipe').classList.remove('open');}
+
+// ── DETAIL RECETTE ────────────────────────────────────────────────────────────
+function buildDetailHTML(r){
+  let html='<div class="detail-meta">'+
+    '<span class="meal-tag tag-'+r.tag+'">'+r.tagLabel+'</span>'+
+    '<span style="font-size:12px;color:var(--color-text-tertiary)">'+r.time+' min</span>'+
+    (r.thermomix?'<span class="rc-tm">TM6</span>':'')+
+    (r.custom?'<span class="rc-tm" style="background:var(--color-background-info);color:var(--color-text-info)">Ma recette</span>':'')+
+    '</div>';
+  html+='<div class="detail-section-title">Ingrédients</div>';
+  CAT_ORDER.forEach(cat=>{
+    if(!r.ings[cat]||!r.ings[cat].length)return;
+    html+='<div class="detail-ing-cat">'+(CAT_LABELS[cat]||cat)+'</div><ul class="detail-ing-list">';
+    r.ings[cat].forEach(item=>{
+      const name=typeof item==='object'?item.name:item.split(' — ')[0];
+      const qty=typeof item==='object'?item.qty:(item.split(' — ')[1]||'');
+      html+='<li><span>'+name+'</span><span class="ing-qty">'+qty+'</span></li>';
+    });
+    html+='</ul>';
+  });
+  if(r.steps&&r.steps.length){
+    html+='<div class="detail-section-title">Préparation</div><ol class="detail-steps">';
+    r.steps.forEach(s=>{html+='<li>'+s+'</li>';});
+    html+='</ol>';
+  }
+  return html;
+}
+function openDetailModal(id){
+  const r=getAllRecipes().find(x=>x.id===id);if(!r)return;
+  document.getElementById('mdet-title').textContent=r.name;
+  let html=buildDetailHTML(r);
+  html+='<div class="detail-actions">'+
+    '<button class="rc-btn-plan" onclick="closeThenPlan('+r.id+')">+ Planifier</button>'+
+    '<button class="rc-btn" onclick="closeThenCourses('+r.id+')">+ Courses</button>'+
+    (r.custom?'<button class="rc-btn" onclick="closeDetailModal();openRecipeForm('+r.id+')">Modifier</button>':'')+ 
+    (r.cookidoo?'<a class="cookidoo-link" href="'+r.cookidoo+'" target="_blank">Cookidoo ↗</a>':'')+
+    '</div>';
+  document.getElementById('mdet-body').innerHTML=html;
+  document.getElementById('modal-detail').classList.add('open');
+}
+function closeDetailModal(){document.getElementById('modal-detail').classList.remove('open');}
+function closeThenPlan(id){closeDetailModal();openPlanModal(getAllRecipes().find(r=>r.id===id));}
+function closeThenCourses(id){closeDetailModal();addToList(id);}
+
+// ── MODAL planifier depuis recettes ──────────────────────────────────────────
+function openPlanModal(recipe){
+  pendingRecipe=recipe;
+  document.getElementById('mplan-title').textContent='Planifier : '+recipe.name;
+  const body=document.getElementById('mplan-body');body.innerHTML='';
+  const cbRow=document.createElement('div');cbRow.className='plan-courses-row';
+  cbRow.innerHTML='<input type="checkbox" id="plan-cb-courses" class="plan-courses-cb" checked>'+
+    '<label for="plan-cb-courses" class="plan-courses-label">Ajouter les ingrédients à la liste de courses</label>';
+  body.appendChild(cbRow);
+  for(let wo=weekOffset;wo<=weekOffset+1;wo++){
+    const secLabel=document.createElement('div');secLabel.className='modal-section';
+    secLabel.textContent=wo===weekOffset?'Cette semaine':'Semaine suivante';
+    body.appendChild(secLabel);
+    ['midi','soir'].forEach(slot=>{
+      for(let d=0;d<7;d++){
+        if(!hasSlot(d,slot))return;
+        const existing=(meals['w'+wo]&&meals['w'+wo][d]&&meals['w'+wo][d][slot])||null;
+        const btn=document.createElement('button');btn.className='sug-btn';
+        btn.innerHTML='<span style="flex:1">'+DAYS_FULL[d]+' '+(slot==='midi'?'Midi':'Soir')+'</span>'+
+          (existing?'<span style="font-size:10px;color:var(--color-text-tertiary)">'+existing.name.slice(0,16)+'…</span>':'<span style="font-size:10px;color:var(--color-text-success)">libre</span>');
+        btn.onclick=(()=>{const _wo=wo,_d=d,_s=slot;return()=>{
+          const k='w'+_wo;if(!meals[k])meals[k]={};if(!meals[k][_d])meals[k][_d]={};
+          meals[k][_d][_s]=pendingRecipe;
+          if(document.getElementById('plan-cb-courses').checked&&!manualList.includes(pendingRecipe.id))manualList.push(pendingRecipe.id);
+          closePlanModal();if(_wo===weekOffset)renderGrid();updateCoursesBadge();persist();
+        };})();
+        body.appendChild(btn);
+      }
+    });
+  }
+  document.getElementById('modal-plan').classList.add('open');
+}
+function closePlanModal(){document.getElementById('modal-plan').classList.remove('open');pendingRecipe=null;}
+
+document.getElementById('modal-plan').addEventListener('click',function(e){if(e.target===this)closePlanModal();});
+document.getElementById('modal-recipe').addEventListener('click',function(e){if(e.target===this)closeRecipeModal();});
+document.getElementById('modal-detail').addEventListener('click',function(e){if(e.target===this)closeDetailModal();});
+
+// ── RECETTES ─────────────────────────────────────────────────────────────────
+function setFilter(f,btn){
+  recipeFilter=f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');renderRecipes();
+}
+function filterRecipes(q){recipeSearch=q.toLowerCase();renderRecipes();}
+function renderRecipes(){
+  const grid=document.getElementById('recipe-grid');grid.innerHTML='';
+  getAllRecipes().filter(r=>{
+    const matchF=recipeFilter==='tous'||(recipeFilter==='thermomix'?r.thermomix:recipeFilter==='rapide'?r.time<25:r.tag===recipeFilter);
+    const matchS=!recipeSearch||r.name.toLowerCase().includes(recipeSearch);
+    return matchF&&matchS;
+  }).forEach(r=>{
+    const allIngs=Object.values(r.ings).flat().slice(0,3).map(i=>typeof i==='object'?i.name:i.split(' — ')[0]);
+    const card=document.createElement('div');card.className='recipe-card';
+    card.innerHTML=
+      '<div class="rc-header">'+
+        '<span class="rc-name">'+r.name+(r.custom?'<span class="custom-badge">perso</span>':'')+'</span>'+
+        '<span class="meal-tag tag-'+r.tag+'">'+r.tagLabel+'</span>'+
+      '</div>'+
+      '<div class="rc-meta"><span class="rc-time">'+r.time+' min</span>'+
+        (r.thermomix?'<span class="rc-tm">TM6</span>':'')+
+        (r.cookidoo?'<span class="rc-tm" style="background:var(--color-background-info);color:var(--color-text-info)">Cookidoo</span>':'')+
+      '</div>'+
+      '<div class="rc-ings">'+allIngs.join(' · ')+(Object.values(r.ings).flat().length>3?'…':'')+'</div>'+
+      '<div class="rc-actions">'+
+        '<button class="rc-btn" onclick="event.stopPropagation();openDetailModal('+r.id+')">Voir</button>'+
+        '<button class="rc-btn-plan" onclick="event.stopPropagation();openPlanModal(getAllRecipes().find(x=>x.id==='+r.id+'))">+ Planifier</button>'+
+        '<button class="rc-btn" onclick="event.stopPropagation();addToList('+r.id+')">+ Courses</button>'+
+        (r.custom?'<button class="rc-btn" onclick="event.stopPropagation();openRecipeForm('+r.id+')">Modifier</button>':'')+ 
+        (r.custom?'<button class="rc-btn-danger" onclick="event.stopPropagation();confirmDelete('+r.id+')">Suppr.</button>':'')+
+      '</div>';
+    card.onclick=()=>openDetailModal(r.id);
+    grid.appendChild(card);
+  });
+}
+
+// ── FORMULAIRE RECETTE (ajout + édition) ─────────────────────────────────────
+function openRecipeForm(id){
+  editingRecipeId=id;
+  const isEdit=(id!=null);
+  document.getElementById('mform-title').textContent=isEdit?'Modifier la recette':'Nouvelle recette';
+  const err=document.getElementById('f-error');err.style.display='none';
+  if(isEdit){
+    const r=customRecipes.find(x=>x.id===id);if(!r)return;
+    document.getElementById('f-name').value=r.name;
+    document.getElementById('f-tag').value=r.tag;
+    document.getElementById('f-time').value=r.time;
+    document.getElementById('f-tm').value=r.thermomix?'1':'0';
+    document.getElementById('f-cookidoo').value=r.cookidoo||'';
+    document.getElementById('f-steps').value=(r.steps||[]).join('\n');
+    // Reconstruire les lignes d'ingrédients
+    buildIngRowsFromRecipe(r);
+  } else {
+    document.getElementById('f-name').value='';
+    document.getElementById('f-tag').value='vege';
+    document.getElementById('f-time').value='';
+    document.getElementById('f-tm').value='0';
+    document.getElementById('f-cookidoo').value='';
+    document.getElementById('f-steps').value='';
+    document.getElementById('f-ing-rows').innerHTML='';
+    addIngRow();addIngRow();addIngRow();
+  }
+  document.getElementById('modal-form').classList.add('open');
+}
+function closeRecipeForm(){document.getElementById('modal-form').classList.remove('open');editingRecipeId=null;}
+
+function buildIngRowsFromRecipe(r){
+  const container=document.getElementById('f-ing-rows');container.innerHTML='';
+  const allItems=Object.values(r.ings).flat();
+  if(!allItems.length){addIngRow();return;}
+  allItems.forEach(item=>{
+    const name=typeof item==='object'?item.name:item.split(' — ')[0];
+    const qty=typeof item==='object'?item.qty:(item.split(' — ')[1]||'');
+    addIngRow(name,qty);
+  });
+}
+function addIngRow(name='',qty=''){
+  const container=document.getElementById('f-ing-rows');
+  const row=document.createElement('div');row.className='ing-row';
+  row.innerHTML='<input type="text" placeholder="Nom de l\'ingrédient" value="'+escapeAttr(name)+'">'+
+    '<input type="text" placeholder="Quantité" value="'+escapeAttr(qty)+'">'+
+    '<button class="ing-del" onclick="this.parentElement.remove()" title="Supprimer">×</button>';
+  container.appendChild(row);
+}
+function escapeAttr(s){return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+
+function collectIngredients(){
+  const rows=document.querySelectorAll('#f-ing-rows .ing-row');
+  const items=[];
+  rows.forEach(row=>{
+    const inputs=row.querySelectorAll('input');
+    const name=inputs[0].value.trim();
+    const qty=inputs[1].value.trim();
+    if(name)items.push({name,qty});
+  });
+  return items;
+}
+
+function saveRecipeForm(){
+  const name=document.getElementById('f-name').value.trim();
+  const tag=document.getElementById('f-tag').value;
+  const time=parseInt(document.getElementById('f-time').value)||0;
+  const tm=document.getElementById('f-tm').value==='1';
+  const cookidooUrl=document.getElementById('f-cookidoo').value.trim()||null;
+  const stepsRaw=document.getElementById('f-steps').value.trim();
+  const items=collectIngredients();
+  const err=document.getElementById('f-error');
+  if(!name){err.textContent='Le nom est obligatoire.';err.style.display='block';return;}
+  if(!time||time<1){err.textContent='Indiquez un temps.';err.style.display='block';return;}
+  if(!items.length){err.textContent='Ajoutez au moins un ingrédient.';err.style.display='block';return;}
+  err.style.display='none';
+  const steps=stepsRaw?stepsRaw.split('\n').map(l=>l.trim()).filter(Boolean):[];
+  if(editingRecipeId!=null){
+    const idx=customRecipes.findIndex(x=>x.id===editingRecipeId);
+    if(idx>=0){
+      customRecipes[idx]={...customRecipes[idx],name,tag,tagLabel:TAG_LABELS[tag]||tag,time,thermomix:tm,cookidoo:cookidooUrl,ings:{epicerie:items},steps};
+    }
+  } else {
+    customRecipes.push({id:nextId++,name,tag,tagLabel:TAG_LABELS[tag]||tag,time,thermomix:tm,cookidoo:cookidooUrl,ings:{epicerie:items},steps,custom:true});
+  }
+  closeRecipeForm();persist();renderRecipes();
+}
+
+// ── CONFIRM SUPPRESSION ───────────────────────────────────────────────────────
+function confirmDelete(id){
+  const r=getAllRecipes().find(x=>x.id===id);
+  document.getElementById('confirm-msg').textContent='Supprimer «'+r.name+'» ? Cette action est irréversible.';
+  document.getElementById('confirm-ok').onclick=()=>{
+    customRecipes=customRecipes.filter(x=>x.id!==id);
+    manualList=manualList.filter(x=>x!==id);
+    closeConfirm();persist();renderRecipes();updateCoursesBadge();
+  };
+  document.getElementById('confirm-del').classList.add('open');
+}
+function closeConfirm(){document.getElementById('confirm-del').classList.remove('open');}
+
+// ── COURSES ───────────────────────────────────────────────────────────────────
+function setGroupMode(mode){
+  groupMode=mode;
+  document.getElementById('btn-group-cat').classList.toggle('active',mode==='cat');
+  document.getElementById('btn-group-rec').classList.toggle('active',mode==='recette');
+  renderCourses();
+}
+
+function getPlannedRecipes(){
+  const ids=new Set();
+  Object.values(meals).forEach(week=>{Object.values(week).forEach(day=>{Object.values(day).forEach(r=>{if(r&&r.id)ids.add(r.id);});});});
+  return[...ids].map(id=>getAllRecipes().find(r=>r.id===id)).filter(Boolean);
+}
+function addToList(id){if(!manualList.includes(id))manualList.push(id);updateCoursesBadge();persist();switchTab('courses');}
+
+function getActiveRecipes(){
+  const planned=getPlannedRecipes();
+  const extra=manualList.map(id=>getAllRecipes().find(r=>r.id===id)).filter(Boolean);
+  return[...planned,...extra.filter(r=>!planned.find(p=>p.id===r.id))];
+}
+
+function getIngName(item){return typeof item==='object'?item.name:item.split(' — ')[0];}
+function getIngQty(item){return typeof item==='object'?item.qty:(item.split(' — ')[1]||'');}
+
+function renderCourses(){
+  const container=document.getElementById('courses-list');
+  const all=getActiveRecipes();
+  const totalIngs=all.reduce((s,r)=>s+Object.values(r.ings).flat().length,0);
+  document.getElementById('courses-subtitle').textContent=
+    all.length?totalIngs+' article'+(totalIngs>1?'s':'')+' · '+all.length+' recette'+(all.length>1?'s':''):'Aucun repas planifié';
+  if(!all.length){container.innerHTML='<div class="empty-state">Planifiez des repas ou ajoutez des recettes aux courses pour générer la liste.</div>';return;}
+  container.innerHTML='';
+  if(groupMode==='cat'){
+    // Fusionner par catégorie
+    const merged={};
+    all.forEach(r=>{
+      Object.entries(r.ings).forEach(([cat,items])=>{
+        if(!merged[cat])merged[cat]={};
+        items.forEach(item=>{
+          const name=getIngName(item).toLowerCase().trim();
+          const qty=getIngQty(item);
+          if(!merged[cat][name])merged[cat][name]=[];
+          merged[cat][name].push(qty);
+        });
+      });
+    });
+    CAT_ORDER.forEach(cat=>{
+      if(!merged[cat])return;
+      const sec=document.createElement('div');sec.className='cat-section';
+      sec.innerHTML='<div class="cat-title">'+(CAT_LABELS[cat]||cat)+'</div>';
+      Object.entries(merged[cat]).forEach(([name,qtys])=>{
+        const qty=qtys.filter(Boolean).join(' + ')||'';
+        sec.appendChild(makeCourseRow('cat_'+cat+'_'+name,name.charAt(0).toUpperCase()+name.slice(1),qty));
+      });
+      container.appendChild(sec);
+    });
+  } else {
+    // Par recette
+    all.forEach(r=>{
+      const sec=document.createElement('div');sec.className='cat-section';
+      sec.innerHTML='<div class="cat-title" style="display:flex;align-items:center;gap:6px">'+
+        '<span class="meal-tag tag-'+r.tag+'" style="font-size:10px">'+r.tagLabel+'</span>'+r.name+'</div>';
+      Object.values(r.ings).flat().forEach(item=>{
+        const name=getIngName(item);const qty=getIngQty(item);
+        sec.appendChild(makeCourseRow('rec_'+r.id+'_'+name.toLowerCase(),name,qty));
+      });
+      container.appendChild(sec);
+    });
+  }
+}
+
+function makeCourseRow(key,name,qty){
+  const isChecked=checked[key]||false;
+  const row=document.createElement('div');row.className='course-item';
+  row.innerHTML='<div class="course-check'+(isChecked?' checked':'')+'" onclick="toggleCheck(\''+key+'\',this)">'+(isChecked?'✓':'')+'</div>'+
+    '<span class="course-name'+(isChecked?' checked':'')+'">'+name+'</span>'+
+    '<span class="course-qty'+(isChecked?' checked':'')+'">'+qty+'</span>';
+  return row;
+}
+
+function toggleCheck(key,el){
+  checked[key]=!checked[key];
+  el.classList.toggle('checked',checked[key]);
+  el.textContent=checked[key]?'✓':'';
+  el.nextElementSibling.classList.toggle('checked',checked[key]);
+  el.nextElementSibling.nextElementSibling.classList.toggle('checked',checked[key]);
+  persist();
+}
+function clearChecked(){Object.keys(checked).forEach(k=>{if(checked[k])delete checked[k];});persist();renderCourses();}
+function resetCourses(){checked={};manualList=[];persist();renderCourses();updateCoursesBadge();}
+function updateCoursesBadge(){
+  const n=getActiveRecipes().length;
+  document.getElementById('courses-badge').textContent=n?'('+n+')':'';
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+loadFromLS();
+renderGrid();
+renderRecipes();
+</script>
+</body>
+</html>

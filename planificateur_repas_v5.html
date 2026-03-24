@@ -959,35 +959,45 @@ function toggleCheck(key,el){
   persist();
 }
 function clearChecked(){
-  // Supprimer les articles cochés de la liste (ils sont faits, on les retire)
-  Object.keys(checked).forEach(k=>{if(checked[k])dismissed.add(k);});
+  const all=getActiveRecipes();
+  Object.keys(checked).forEach(k=>{
+    if(!checked[k])return;
+    dismissed.add(k);
+    if(k.startsWith('cat_')){
+      const rest=k.slice(4);const sepIdx=rest.indexOf('_');
+      const cat=rest.slice(0,sepIdx);const name=rest.slice(sepIdx+1);
+      all.forEach(r=>{
+        if(r.ings[cat])r.ings[cat].forEach(item=>{
+          if(getIngName(item).toLowerCase().trim()===name)dismissed.add('rec_'+r.id+'_'+name);
+        });
+      });
+    }else if(k.startsWith('rec_')){
+      const rest=k.slice(4);const sepIdx=rest.indexOf('_');
+      const recId=rest.slice(0,sepIdx);const name=rest.slice(sepIdx+1);
+      all.forEach(r=>{
+        if(String(r.id)===recId)Object.entries(r.ings).forEach(([cat,items])=>{
+          items.forEach(item=>{
+            if(getIngName(item).toLowerCase().trim()===name)dismissed.add('cat_'+cat+'_'+name);
+          });
+        });
+      });
+    }
+  });
   checked={};persist();renderCourses();
 }
 function resetCourses(){
-  // Réinitialiser : vide totalement la liste de courses (cochés et non cochés)
-  // On ajoute TOUS les articles actuels dans dismissed pour les masquer
   const all=getActiveRecipes();
-  if(all.length){
-    // Mode catégorie : générer toutes les clés
-    const merged={};
-    all.forEach(r=>{
-      Object.entries(r.ings).forEach(([cat,items])=>{
-        if(!merged[cat])merged[cat]={};
-        items.forEach(item=>{
-          const name=getIngName(item).toLowerCase().trim();
-          dismissed.add('cat_'+cat+'_'+name);
-        });
+  const newDismissed=new Set();
+  all.forEach(r=>{
+    Object.entries(r.ings).forEach(([cat,items])=>{
+      items.forEach(item=>{
+        const name=getIngName(item).toLowerCase().trim();
+        newDismissed.add('cat_'+cat+'_'+name);
+        newDismissed.add('rec_'+r.id+'_'+name);
       });
     });
-    // Mode recette : générer toutes les clés
-    all.forEach(r=>{
-      Object.values(r.ings).flat().forEach(item=>{
-        dismissed.add('rec_'+r.id+'_'+getIngName(item).toLowerCase());
-      });
-    });
-  }
-  checked={};manualList=[];
-  persist();renderCourses();updateCoursesBadge();
+  });
+  checked={};manualList=[];dismissed=newDismissed;persist();renderCourses();updateCoursesBadge();
 }
 function updateCoursesBadge(){
   const n=getActiveRecipes().length;
